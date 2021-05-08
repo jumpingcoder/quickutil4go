@@ -35,6 +35,7 @@ func configInterceptor(app *iris.Application) {
 }
 
 func configRouter(app *iris.Application) {
+	app.HandleDir("/", "./static")
 	app.OnErrorCode(iris.StatusNotFound, controller.NotFound)
 	app.OnErrorCode(iris.StatusInternalServerError, controller.InternalError)
 	app.Get("/", controller.Index)

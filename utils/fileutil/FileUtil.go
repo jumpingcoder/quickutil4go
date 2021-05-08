@@ -7,6 +7,11 @@ import (
 	"os"
 )
 
+func GetCurrentPath() string {
+	path, _ := os.Getwd()
+	return path
+}
+
 func File2Byte(path string) ([]byte, error) {
 	return ioutil.ReadFile(path)
 }

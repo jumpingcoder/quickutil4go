@@ -80,5 +80,6 @@ func getRuntimeInfo() (string, int) {
 		codePath = "-"
 		codeLine = -1
 	}
+	//codePath = "." + codePath[len(fileutil.GetCurrentPath()):len(codePath)]
 	return codePath, codeLine
 }
