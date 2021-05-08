@@ -1,0 +1,7 @@
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+quickutil4go
+*.o
+*.a
+*.so
+.DS_Store
+.idea
