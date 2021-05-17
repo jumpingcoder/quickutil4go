@@ -1,30 +1,55 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/jumpingcoder/quickutil4go/controller"
 	"github.com/jumpingcoder/quickutil4go/interceptor"
+	"github.com/jumpingcoder/quickutil4go/utils/cryptoutil"
+	"github.com/jumpingcoder/quickutil4go/utils/dbutil"
+	"github.com/jumpingcoder/quickutil4go/utils/fileutil"
 	"github.com/jumpingcoder/quickutil4go/utils/logutil"
 	"strings"
 )
 
 import "github.com/kataras/iris/v12"
 
+var config map[string]interface{}
+var configDecryptKey string
 var port string
 var env string
-var decryptKey string
 
 func configService() {
-	flag.StringVar(&port, "port", "9000", "端口号，默认为9000")
-	flag.StringVar(&env, "env", "dev", "环境，默认为dev")
-	flag.StringVar(&decryptKey, "key", "", "配置解密配置的key")
+	//配置解析
+	var configPath string
+	flag.StringVar(&configPath, "config", "./config.json", "配置文件路径，默认为./config.json")
+	flag.StringVar(&configDecryptKey, "key", "0000", "配置解密配置的key")
 	flag.Parse()
+	configBytes, _ := fileutil.File2Byte(configPath)
+	json.Unmarshal(configBytes, &config)
+	//组件初始化
+	dbutil.Init(config["DB"].([]interface{}), decryptConfig)
+	//应用初始化
+	env = config["env"].(string)
+	port = config["port"].(string)
 	if !strings.EqualFold(env, "dev") {
 		logutil.SetLogType(logutil.JSON)
 		logutil.SetLogLevel(logutil.INFO)
 	}
-	logutil.Info(fmt.Sprintf("Start with port=%v, env=%v, key=%v", port, env, decryptKey), nil)
+	logutil.Info(fmt.Sprintf("Start with config=%v port=%v, env=%v, key=%v", configPath, port, env, configDecryptKey[0:4]), nil)
+}
+
+func decryptConfig(content string) string {
+	start := strings.Index(content, "ENC(")
+	if start < 1 {
+		return content
+	}
+	end := strings.Index(content[start:len(content)], ")")
+	password := content[start+4 : start+end]
+	decrypted := string(cryptoutil.AESCBCDecrypt(cryptoutil.Base64Decrypt(password), []byte(configDecryptKey), make([]byte, 16)))
+	newContent := content[0:start] + decrypted + content[start+end+1:len(content)]
+	return newContent
 }
 
 func configInterceptor(app *iris.Application) {
@@ -41,6 +66,7 @@ func configRouter(app *iris.Application) {
 	app.Get("/", controller.Index)
 	app.Get("/get", controller.Get)
 	app.Get("/slowGet", controller.SlowGet)
+	app.Get("/getSQL", controller.GetSQL)
 	app.Post("/post", controller.Post)
 	app.Get("/header", controller.Header)
 }
