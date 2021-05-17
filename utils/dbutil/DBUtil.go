@@ -5,6 +5,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/jumpingcoder/quickutil4go/utils/logutil"
 	_ "github.com/lib/pq"
+	"strings"
 	"time"
 )
 
@@ -51,21 +52,46 @@ func DB(dbname string) *sqlx.DB {
 }
 
 func QueryMap(dbname string, query string, args ...interface{}) []map[string]interface{} {
-	stmt, err := dbs[dbname].Preparex(query)
+	stmt, err := dbs[dbname].Prepare(query)
 	if err != nil {
 		logutil.Error(nil, err)
 		return nil
 	}
 	defer stmt.Close()
-	rows, err := stmt.Queryx(args...)
+	rows, err := stmt.Query(args...)
 	if err != nil {
 		logutil.Error(nil, err)
 		return nil
 	}
 	var resultList []map[string]interface{}
 	for rows.Next() {
+		//字段列表
+		columns, err := rows.Columns()
+		if err != nil {
+			logutil.Error(nil, err)
+			return nil
+		}
+		//字段类型列表
+		columnTypes, err := rows.ColumnTypes()
+		//值列表
+		values := make([]interface{}, len(columns))
+		for i := range values {
+			values[i] = new(interface{})
+		}
+		err = rows.Scan(values...)
+		if err != nil {
+			logutil.Error(nil, err)
+			return nil
+		}
+		//组装
 		result := make(map[string]interface{})
-		rows.MapScan(result)
+		for i, column := range columns {
+			if strings.Index(columnTypes[i].DatabaseTypeName(), "VARCHAR") >= 0 {
+				result[column] = string((*(values[i].(*interface{}))).([]uint8))
+			} else {
+				result[column] = *(values[i].(*interface{}))
+			}
+		}
 		resultList = append(resultList, result)
 	}
 	logutil.Info(resultList, nil)

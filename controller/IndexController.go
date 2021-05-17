@@ -44,7 +44,7 @@ func Header(ctx iris.Context) {
 
 func GetSQL(ctx iris.Context) {
 	hello := make(map[string]interface{})
-	hello["2"] = dbutil.QueryMap("pg", "select * from company_task limit $1", 2)
-	hello["1"] = dbutil.QueryMap("mysql", "select * from stock_zjlx limit 1")
+	//hello["2"] = dbutil.QueryMap("pg", "select * from company_task limit $1", 2)
+	hello["1"] = dbutil.QueryMap("mysql", "select * from stock_zjlx limit ?", 2)
 	ctx.JSON(hello)
 }

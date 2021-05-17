@@ -6,7 +6,7 @@
     {
       "DBName": "mysql",
       "Driver": "mysql",
-      "Url": "root:ENC(+WOWZk/NwUlHO7uhA1KzBw==)@tcp(120.24.48.15:3000)/quickutil?parseTime=true",
+      "Url": "root:ENC(+WOWZk/NwUlHO7uhA1KzBw==)@tcp(120.24.48.15:3000)/quickutil?charset=utf8mb4&parseTime=true",
       "MaxOpenConns": 50,
       "MaxIdleConns": 50,
       "ConnMaxIdleTime": 0,
