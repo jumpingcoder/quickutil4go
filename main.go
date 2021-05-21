@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/jumpingcoder/quickutil4go/controller"
 	"github.com/jumpingcoder/quickutil4go/interceptor"
-	"github.com/jumpingcoder/quickutil4go/utils/cryptoutil"
 	"github.com/jumpingcoder/quickutil4go/utils/dbutil"
 	"github.com/jumpingcoder/quickutil4go/utils/fileutil"
 	"github.com/jumpingcoder/quickutil4go/utils/logutil"
@@ -29,7 +28,7 @@ func configService() {
 	configBytes, _ := fileutil.File2Byte(configPath)
 	json.Unmarshal(configBytes, &config)
 	//组件初始化
-	dbutil.Init(config["DB"].([]interface{}), decryptConfig)
+	dbutil.Init(config["DB"].([]interface{}), configDecryptKey, dbutil.DefaultDecryptHandler)
 	//应用初始化
 	env = config["env"].(string)
 	port = config["port"].(string)
@@ -38,18 +37,6 @@ func configService() {
 		logutil.SetLogLevel(logutil.INFO)
 	}
 	logutil.Info(fmt.Sprintf("Start with config=%v port=%v, env=%v, key=%v", configPath, port, env, configDecryptKey[0:4]), nil)
-}
-
-func decryptConfig(content string) string {
-	start := strings.Index(content, "ENC(")
-	if start < 1 {
-		return content
-	}
-	end := strings.Index(content[start:len(content)], ")")
-	password := content[start+4 : start+end]
-	decrypted := string(cryptoutil.AESCBCDecrypt(cryptoutil.Base64Decrypt(password), []byte(configDecryptKey), make([]byte, 16)))
-	newContent := content[0:start] + decrypted + content[start+end+1:len(content)]
-	return newContent
 }
 
 func configInterceptor(app *iris.Application) {

@@ -1,8 +1,11 @@
 package dbutil
 
 import (
+	"database/sql"
+	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	"github.com/jumpingcoder/quickutil4go/utils/cryptoutil"
 	"github.com/jumpingcoder/quickutil4go/utils/logutil"
 	_ "github.com/lib/pq"
 	"strings"
@@ -11,7 +14,7 @@ import (
 
 var dbs map[string]*sqlx.DB = make(map[string]*sqlx.DB)
 
-func Init(configs []interface{}, decryptHandler func(content string) string) bool {
+func Init(configs []interface{}, decryptKey string, decryptHandler func(content string, decryptKey string) string) bool {
 	for _, config := range configs {
 		configMap := config.(map[string]interface{})
 		if configMap["DBName"] == nil || configMap["Driver"] == nil || configMap["Url"] == nil {
@@ -20,10 +23,11 @@ func Init(configs []interface{}, decryptHandler func(content string) string) boo
 			return false
 		}
 		dbname := configMap["DBName"].(string)
-		db, err := sqlx.Open(configMap["Driver"].(string), decryptHandler(configMap["Url"].(string)))
+		db, err := sqlx.Open(configMap["Driver"].(string), decryptHandler(configMap["Url"].(string), decryptKey))
 		if err != nil {
 			logutil.Error("数据库"+dbname+"初始化失败", err)
 		}
+		db = db.Unsafe()
 		if configMap["MaxOpenConns"] != nil {
 			db.SetMaxOpenConns(int(configMap["MaxOpenConns"].(float64)))
 		}
@@ -47,11 +51,42 @@ func Init(configs []interface{}, decryptHandler func(content string) string) boo
 	return true
 }
 
+func DefaultDecryptHandler(content string, decryptKey string) string {
+	start := strings.Index(content, "ENC(")
+	if start < 1 {
+		return content
+	}
+	end := strings.Index(content[start:len(content)], ")")
+	password := content[start+4 : start+end]
+	decrypted := string(cryptoutil.AESCBCDecrypt(cryptoutil.Base64Decrypt(password), []byte(decryptKey), make([]byte, 16)))
+	newContent := content[0:start] + decrypted + content[start+end+1:len(content)]
+	return newContent
+}
+
 func DB(dbname string) *sqlx.DB {
 	return dbs[dbname]
 }
+//
+//func QueryObject(dbname string, target interface{}, query string, args ...interface{}) []interface{} {
+//	rows, err := dbs[dbname].Queryx(query, args...)
+//	if err != nil {
+//		logutil.Error(nil, err)
+//		return nil
+//	}
+//	var resultList []interface{}
+//	for rows.Next() {
+//		var target entity.TestDO
+//		err := rows.StructScan(&target)
+//		if err != nil {
+//			logutil.Error(nil, err)
+//		}
+//		resultList = append(resultList, target)
+//	}
+//	return resultList
+//}
 
 func QueryMap(dbname string, query string, args ...interface{}) []map[string]interface{} {
+	//查询
 	stmt, err := dbs[dbname].Prepare(query)
 	if err != nil {
 		logutil.Error(nil, err)
@@ -63,18 +98,24 @@ func QueryMap(dbname string, query string, args ...interface{}) []map[string]int
 		logutil.Error(nil, err)
 		return nil
 	}
+	//驱动
+	driverName := dbs[dbname].DriverName()
+	//字段列表
+	columnNames, err := rows.Columns()
+	if err != nil {
+		logutil.Error(nil, err)
+		return nil
+	}
+	//字段类型列表
+	columnTypes, err := rows.ColumnTypes()
+	if err != nil {
+		logutil.Error(nil, err)
+		return nil
+	}
 	var resultList []map[string]interface{}
+	//值列表
 	for rows.Next() {
-		//字段列表
-		columns, err := rows.Columns()
-		if err != nil {
-			logutil.Error(nil, err)
-			return nil
-		}
-		//字段类型列表
-		columnTypes, err := rows.ColumnTypes()
-		//值列表
-		values := make([]interface{}, len(columns))
+		values := make([]interface{}, len(columnNames))
 		for i := range values {
 			values[i] = new(interface{})
 		}
@@ -83,17 +124,71 @@ func QueryMap(dbname string, query string, args ...interface{}) []map[string]int
 			logutil.Error(nil, err)
 			return nil
 		}
-		//组装
-		result := make(map[string]interface{})
-		for i, column := range columns {
-			if strings.Index(columnTypes[i].DatabaseTypeName(), "VARCHAR") >= 0 {
-				result[column] = string((*(values[i].(*interface{}))).([]uint8))
-			} else {
-				result[column] = *(values[i].(*interface{}))
-			}
+		var result map[string]interface{}
+		switch driverName {
+		case "mysql":
+			result = mysqlMapping(columnNames, columnTypes, values)
+			break
+		case "postgres":
+			result = postgreMapping(columnNames, columnTypes, values)
+			break
+		default:
+			result = defaultMapping(columnNames, columnTypes, values)
+			break
 		}
 		resultList = append(resultList, result)
 	}
-	logutil.Info(resultList, nil)
 	return resultList
+}
+
+func mysqlMapping(columnNames []string, columnTypes []*sql.ColumnType, values []interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for i, columnName := range columnNames {
+		if *values[i].(*interface{}) == nil {
+			result[columnName] = nil
+			continue
+		}
+		if strings.Index(columnTypes[i].DatabaseTypeName(), "VARCHAR") == 0 {
+			result[columnName] = string((*(values[i].(*interface{}))).([]uint8))
+		} else if strings.Index(columnTypes[i].DatabaseTypeName(), "TEXT") == 0 {
+			result[columnName] = string((*(values[i].(*interface{}))).([]uint8))
+		} else if strings.Index(columnTypes[i].DatabaseTypeName(), "CHAR") == 0 {
+			result[columnName] = string((*(values[i].(*interface{}))).([]uint8))
+		} else if strings.Index(columnTypes[i].DatabaseTypeName(), "JSON") == 0 {
+			content := make(map[string]interface{})
+			json.Unmarshal((*(values[i].(*interface{}))).([]uint8), &content)
+			result[columnName] = content
+		} else {
+			result[columnName] = *(values[i].(*interface{}))
+		}
+	}
+	return result
+}
+
+func postgreMapping(columnNames []string, columnTypes []*sql.ColumnType, values []interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for i, columnName := range columnNames {
+		if *values[i].(*interface{}) == nil {
+			result[columnName] = nil
+			continue
+		}
+		if strings.Index(columnTypes[i].DatabaseTypeName(), "BPCHAR") == 0 {
+			result[columnName] = string((*(values[i].(*interface{}))).([]uint8))
+		} else if strings.Index(columnTypes[i].DatabaseTypeName(), "JSON") == 0 {
+			content := make(map[string]interface{})
+			json.Unmarshal((*(values[i].(*interface{}))).([]uint8), &content)
+			result[columnName] = content
+		} else {
+			result[columnName] = *(values[i].(*interface{}))
+		}
+	}
+	return result
+}
+
+func defaultMapping(columnNames []string, columnTypes []*sql.ColumnType, values []interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for i, columnName := range columnNames {
+		result[columnName] = *(values[i].(*interface{}))
+	}
+	return result
 }
