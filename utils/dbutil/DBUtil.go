@@ -14,7 +14,7 @@ import (
 
 var dbs map[string]*sqlx.DB = make(map[string]*sqlx.DB)
 
-func Init(configs []interface{}, decryptKey string, decryptHandler func(content string, decryptKey string) string) bool {
+func InitFromConfig(configs []interface{}, decryptKey string, decryptHandler func(content string, decryptKey string) string) bool {
 	for _, config := range configs {
 		configMap := config.(map[string]interface{})
 		if configMap["DBName"] == nil || configMap["Driver"] == nil || configMap["Url"] == nil {
@@ -23,33 +23,54 @@ func Init(configs []interface{}, decryptKey string, decryptHandler func(content 
 			return false
 		}
 		dbname := configMap["DBName"].(string)
-		db, err := sqlx.Open(configMap["Driver"].(string), decryptHandler(configMap["Url"].(string), decryptKey))
-		if err != nil {
-			logutil.Error("数据库"+dbname+"初始化失败", err)
-		}
-		db = db.Unsafe()
+		driver := configMap["Driver"].(string)
+		url := decryptHandler(configMap["Url"].(string), decryptKey)
+		maxOpenConns := 0
+		maxIdleConns := -1
+		connMaxIdleTime := time.Duration(0)
+		connMaxLifetime := time.Duration(0)
 		if configMap["MaxOpenConns"] != nil {
-			db.SetMaxOpenConns(int(configMap["MaxOpenConns"].(float64)))
+			maxOpenConns = int(configMap["MaxOpenConns"].(float64))
 		}
 		if configMap["MaxIdleConns"] != nil {
-			db.SetMaxIdleConns(int(configMap["MaxIdleConns"].(float64)))
+			maxIdleConns = int(configMap["MaxIdleConns"].(float64))
 		}
 		if configMap["ConnMaxIdleTime"] != nil {
-			db.SetConnMaxIdleTime(time.Duration(time.Second.Nanoseconds() * int64(configMap["ConnMaxIdleTime"].(float64))))
+			connMaxIdleTime = time.Duration(time.Second.Nanoseconds() * int64(configMap["ConnMaxIdleTime"].(float64)))
 		}
 		if configMap["ConnMaxLifetime"] != nil {
-			db.SetConnMaxLifetime(time.Duration(time.Second.Nanoseconds() * int64(configMap["ConnMaxLifetime"].(float64))))
+			connMaxLifetime = time.Duration(time.Second.Nanoseconds() * int64(configMap["ConnMaxLifetime"].(float64)))
 		}
-		err = db.Ping()
-		if err != nil {
-			logutil.Error("数据库"+dbname+"连接失败", err)
-			dbs = nil
-			return false
-		}
-		dbs[dbname] = db
+		AddDB(dbname, driver, url, maxOpenConns, maxIdleConns, connMaxIdleTime, connMaxLifetime)
 	}
 	return true
 }
+
+func AddDB(dbname string, driver string, url string, maxOpenConns int, maxIdleConns int, connMaxIdleTime time.Duration, connMaxLifetime time.Duration) {
+	if dbs[dbname] != nil {
+		logutil.Warn("Database "+dbname+" already exists", nil)
+	}
+	db, err := sqlx.Open(driver, url)
+	if err != nil {
+		logutil.Error("Database "+dbname+" open failed", err)
+	}
+	db = db.Unsafe()
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxIdleConns)
+	db.SetConnMaxIdleTime(connMaxIdleTime)
+	db.SetConnMaxLifetime(connMaxLifetime)
+	err = db.Ping()
+	if err != nil {
+		logutil.Error("Database "+dbname+" connection failed", err)
+		dbs = nil
+	}
+	dbs[dbname] = db
+}
+
+func GetDB(dbname string) *sqlx.DB {
+	return dbs[dbname]
+}
+
 
 func DefaultDecryptHandler(content string, decryptKey string) string {
 	start := strings.Index(content, "ENC(")
@@ -63,9 +84,6 @@ func DefaultDecryptHandler(content string, decryptKey string) string {
 	return newContent
 }
 
-func DB(dbname string) *sqlx.DB {
-	return dbs[dbname]
-}
 //
 //func QueryObject(dbname string, target interface{}, query string, args ...interface{}) []interface{} {
 //	rows, err := dbs[dbname].Queryx(query, args...)

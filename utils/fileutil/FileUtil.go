@@ -48,9 +48,9 @@ func File2Lines(path string) (*list.List, error) {
 }
 
 func Byte2File(path string, bytes []byte) error {
-	return ioutil.WriteFile(path, bytes, 664)
+	return ioutil.WriteFile(path, bytes, 0664)
 }
 
 func String2File(path string, content string) error {
-	return ioutil.WriteFile(path, []byte(content), 664)
+	return ioutil.WriteFile(path, []byte(content), 0664)
 }

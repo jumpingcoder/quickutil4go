@@ -28,7 +28,7 @@ func configService() {
 	configBytes, _ := fileutil.File2Byte(configPath)
 	json.Unmarshal(configBytes, &config)
 	//组件初始化
-	dbutil.Init(config["DB"].([]interface{}), configDecryptKey, dbutil.DefaultDecryptHandler)
+	dbutil.InitFromConfig(config["GetDB"].([]interface{}), configDecryptKey, dbutil.DefaultDecryptHandler)
 	//应用初始化
 	env = config["env"].(string)
 	port = config["port"].(string)
