@@ -3,7 +3,13 @@ Utils for golang
 
 ### Change Log
 
-#### v0.1 logutil, httputil, fileutil, dbutil, cryptoutil, environmentutil
+#### v0.1 
++ logutil
++ httputil
++ fileutil
++ dbutil
++ cryptoutil
++ environmentutil
 
 ### How to begin
 + idea 安装go
