@@ -2,7 +2,6 @@ package fileutil
 
 import (
 	"bufio"
-	"container/list"
 	"io/ioutil"
 	"os"
 )
@@ -32,19 +31,19 @@ func FileExists(path string) (bool, error) {
 	return true, err
 }
 
-func File2Lines(path string) (*list.List, error) {
+func File2Lines(path string) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-	lines := list.New()
+	resultList := make([]string, 0)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		lines.PushBack(scanner.Text())
+		resultList = append(resultList, scanner.Text())
 	}
 	err2 := scanner.Err()
-	return lines, err2
+	return resultList, err2
 }
 
 func Byte2File(path string, bytes []byte) error {

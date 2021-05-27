@@ -1,7 +1,6 @@
 package interceptor
 
 import (
-	"github.com/jumpingcoder/quickutil4go/entity"
 	"github.com/kataras/iris/v12"
 )
 
@@ -20,7 +19,11 @@ func (i *ScriptInterceptor) Interceptor(ctx iris.Context) {
 	}
 	if ctx.IsScript() {
 		ctx.StatusCode(403)
-		ctx.JSON(entity.ResultVO{Code: 403, Message: "Refuse to crawl"})
+		result := make(map[string]interface{})
+		result["success"] = false
+		result["code"] = 403
+		result["message"] = "Refuse to crawl"
+		ctx.JSON(result)
 	} else {
 		ctx.Next()
 	}
