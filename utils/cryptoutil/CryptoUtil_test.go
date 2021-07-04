@@ -4,11 +4,10 @@ import (
 	"testing"
 )
 
-func TestAESCBCEncrypt(t *testing.T) {
-	content := "zxcvbnm"
-	key := "1234567812345678"
-	encrypted := AESCBCEncrypt([]byte(content), []byte(key), make([]byte, 16))
-	t.Log(Base64Encrypt(encrypted))
-	decrypted := AESCBCDecrypt(encrypted, []byte(key), make([]byte, 16))
-	t.Log(string(decrypted))
+func TestEncryptConfigHandler(t *testing.T) {
+	t.Log(EncryptConfigHandler("12345678", "0000000011111111"))
+}
+
+func TestDecryptConfigHandler(t *testing.T) {
+	t.Log(DecryptConfigHandler("ENC(ozPh7o7XOvEup69IjSAbOg==)", "0000000011111111"))
 }

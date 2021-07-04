@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"github.com/jumpingcoder/quickutil4go/utils/logutil"
+	"strings"
 )
 
 func Base64Encrypt(content []byte) string {
@@ -43,6 +44,23 @@ func AESCBCDecrypt(content []byte, key []byte, iv []byte) []byte {
 	decrypted := make([]byte, len(content))
 	blockMode.CryptBlocks(decrypted, content)
 	return unpad(decrypted)
+}
+
+func EncryptConfigHandler(content string, key string) string {
+	encrypted := Base64Encrypt(AESCBCEncrypt([]byte(content), []byte(key), make([]byte, 16)))
+	return "ENC(" + encrypted + ")"
+}
+
+func DecryptConfigHandler(content string, key string) string {
+	start := strings.Index(content, "ENC(")
+	if start < 0 {
+		return content
+	}
+	end := strings.Index(content[start:len(content)], ")")
+	password := content[start+4 : start+end]
+	decrypted := string(AESCBCDecrypt(Base64Decrypt(password), []byte(key), make([]byte, 16)))
+	newContent := content[0:start] + decrypted + content[start+end+1:len(content)]
+	return newContent
 }
 
 func pad(ciphertext []byte, blockSize int) []byte {

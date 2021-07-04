@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/jumpingcoder/quickutil4go/utils/cryptoutil"
 	"github.com/jumpingcoder/quickutil4go/utils/logutil"
 	_ "github.com/lib/pq"
 	"strings"
@@ -25,8 +24,8 @@ func InitFromConfig(configs []interface{}, decryptKey string, decryptHandler fun
 		dbname := configMap["DBName"].(string)
 		driver := configMap["Driver"].(string)
 		url := decryptHandler(configMap["Url"].(string), decryptKey)
-		maxOpenConns := 0
-		maxIdleConns := -1
+		maxOpenConns := 100
+		maxIdleConns := 50
 		connMaxIdleTime := time.Duration(0)
 		connMaxLifetime := time.Duration(0)
 		if configMap["MaxOpenConns"] != nil {
@@ -61,8 +60,9 @@ func AddDB(dbname string, driver string, url string, maxOpenConns int, maxIdleCo
 	db.SetConnMaxLifetime(connMaxLifetime)
 	err = db.Ping()
 	if err != nil {
-		logutil.Error("Database "+dbname+" connection failed", err)
-		dbs = nil
+		logutil.Error("Database "+dbname+" ping failed", err)
+	} else {
+		logutil.Info("Database "+dbname+" connected", err)
 	}
 	dbs[dbname] = db
 }
@@ -71,17 +71,17 @@ func GetDB(dbname string) *sqlx.DB {
 	return dbs[dbname]
 }
 
-
-func DefaultDecryptHandler(content string, decryptKey string) string {
-	start := strings.Index(content, "ENC(")
-	if start < 1 {
-		return content
+func CloseDB(dbname string) bool {
+	if dbs[dbname] == nil {
+		logutil.Warn("Database "+dbname+" not exists", nil)
+		return true
 	}
-	end := strings.Index(content[start:len(content)], ")")
-	password := content[start+4 : start+end]
-	decrypted := string(cryptoutil.AESCBCDecrypt(cryptoutil.Base64Decrypt(password), []byte(decryptKey), make([]byte, 16)))
-	newContent := content[0:start] + decrypted + content[start+end+1:len(content)]
-	return newContent
+	err := dbs[dbname].Close()
+	dbs[dbname] = nil
+	if err != nil {
+		logutil.Error("Database "+dbname+" close failed", err)
+	}
+	return true
 }
 
 //
@@ -103,15 +103,15 @@ func DefaultDecryptHandler(content string, decryptKey string) string {
 //	return resultList
 //}
 
-func QueryMap(dbname string, query string, args ...interface{}) []map[string]interface{} {
+func QueryMap(dbname string, sql string, args ...interface{}) []map[string]interface{} {
 	//查询
-	stmt, err := dbs[dbname].Prepare(query)
+	stmt, err := dbs[dbname].Prepare(sql)
 	if err != nil {
 		logutil.Error(nil, err)
 		return nil
 	}
 	defer stmt.Close()
-	rows, err := stmt.Query(args...)
+	rows, err := stmt.Query(args)
 	if err != nil {
 		logutil.Error(nil, err)
 		return nil
@@ -137,7 +137,7 @@ func QueryMap(dbname string, query string, args ...interface{}) []map[string]int
 		for i := range values {
 			values[i] = new(interface{})
 		}
-		err = rows.Scan(values...)
+		err = rows.Scan(values)
 		if err != nil {
 			logutil.Error(nil, err)
 			return nil
@@ -157,6 +157,42 @@ func QueryMap(dbname string, query string, args ...interface{}) []map[string]int
 		resultList = append(resultList, result)
 	}
 	return resultList
+}
+
+func executeSQL(dbname string, sql string, args ...interface{}) bool {
+	stmt, err := dbs[dbname].Prepare(sql)
+	if err != nil {
+		logutil.Error(nil, err)
+		return false
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(args)
+	if err != nil {
+		logutil.Error(nil, err)
+		return false
+	}
+	return true
+}
+
+func executeBatchSQL(dbname string, sqls []string) bool {
+	tx, err := dbs[dbname].Begin()
+	if err != nil {
+		logutil.Error(nil, err)
+		return false
+	}
+	for _, sql := range sqls {
+		_, err = tx.Exec(sql)
+		if err != nil {
+			logutil.Error(nil, err)
+			return false
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		logutil.Error(nil, err)
+		return false
+	}
+	return true
 }
 
 func mysqlMapping(columnNames []string, columnTypes []*sql.ColumnType, values []interface{}) map[string]interface{} {
