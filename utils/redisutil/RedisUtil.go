@@ -1,4 +1,4 @@
-package dbutil
+package redisutil
 
 import (
 	"github.com/go-redis/redis/v8"

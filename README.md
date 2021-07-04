@@ -24,4 +24,4 @@ Utils for golang
 
 ### How to begin
 
-+ go get github.com/jumpingcoder/quickutil
++ go get github.com/jumpingcoder/quickutil4go
