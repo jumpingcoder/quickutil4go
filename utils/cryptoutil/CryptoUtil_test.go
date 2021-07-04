@@ -11,3 +11,7 @@ func TestEncryptConfigHandler(t *testing.T) {
 func TestDecryptConfigHandler(t *testing.T) {
 	t.Log(DecryptConfigHandler("ENC(ozPh7o7XOvEup69IjSAbOg==)", "0000000011111111"))
 }
+
+func TestMD5Encrypt(t *testing.T) {
+	t.Log(MD5Encrypt([]byte("123456")))
+}

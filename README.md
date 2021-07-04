@@ -8,6 +8,7 @@ Utils for golang
 
 + redisutil
 + dbutil
++ cryptoutil
 
 #### v0.2.0
 

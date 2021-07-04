@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/md5"
+	"crypto/sha1"
 	"encoding/base64"
+	"fmt"
 	"github.com/jumpingcoder/quickutil4go/utils/logutil"
 	"strings"
 )
@@ -19,6 +22,16 @@ func Base64Decrypt(content string) []byte {
 		logutil.Error("Base64 deserialization failed", err)
 	}
 	return output
+}
+
+func MD5Encrypt(content []byte) string {
+	sum := md5.Sum(content)
+	return fmt.Sprintf("%x", sum)
+}
+
+func SHA1Encrypt(content []byte) string {
+	sum := sha1.Sum(content)
+	return fmt.Sprintf("%x", sum)
 }
 
 func AESCBCEncrypt(content []byte, key []byte, iv []byte) []byte {
