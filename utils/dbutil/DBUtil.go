@@ -111,7 +111,7 @@ func QueryMap(dbname string, sql string, args ...interface{}) []map[string]inter
 		return nil
 	}
 	defer stmt.Close()
-	rows, err := stmt.Query(args)
+	rows, err := stmt.Query(args...)
 	if err != nil {
 		logutil.Error(nil, err)
 		return nil
@@ -137,7 +137,7 @@ func QueryMap(dbname string, sql string, args ...interface{}) []map[string]inter
 		for i := range values {
 			values[i] = new(interface{})
 		}
-		err = rows.Scan(values)
+		err = rows.Scan(values...)
 		if err != nil {
 			logutil.Error(nil, err)
 			return nil
@@ -166,7 +166,7 @@ func executeSQL(dbname string, sql string, args ...interface{}) bool {
 		return false
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(args)
+	_, err = stmt.Exec(args...)
 	if err != nil {
 		logutil.Error(nil, err)
 		return false
