@@ -1,6 +1,7 @@
 package redisutil
 
 import (
+	"context"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jumpingcoder/quickutil4go/utils/logutil"
@@ -66,12 +67,14 @@ func InitFromConfig(configs []interface{}, decryptKey string, decryptHandler fun
 	return true
 }
 
+var ctx = context.Background()
+
 func AddRedisClient(redisName string, options *redis.Options) {
 	if redisClients[redisName] != nil {
 		logutil.Warn("Redis "+redisName+" already exists", nil)
 	}
 	client := redis.NewClient(options)
-	pong, err := client.Ping(nil).Result()
+	pong, err := client.Ping(ctx).Result()
 	if err != nil {
 		logutil.Error("Redis "+redisName+" ping failed", err)
 	} else {
