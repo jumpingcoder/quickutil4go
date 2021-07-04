@@ -159,7 +159,7 @@ func QueryMap(dbname string, sql string, args ...interface{}) []map[string]inter
 	return resultList
 }
 
-func executeSQL(dbname string, sql string, args ...interface{}) bool {
+func ExecuteSQL(dbname string, sql string, args ...interface{}) bool {
 	stmt, err := dbs[dbname].Prepare(sql)
 	if err != nil {
 		logutil.Error(nil, err)
@@ -174,7 +174,7 @@ func executeSQL(dbname string, sql string, args ...interface{}) bool {
 	return true
 }
 
-func executeBatchSQL(dbname string, sqls []string) bool {
+func ExecuteBatchSQL(dbname string, sqls []string) bool {
 	tx, err := dbs[dbname].Begin()
 	if err != nil {
 		logutil.Error(nil, err)
