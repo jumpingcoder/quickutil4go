@@ -17,5 +17,5 @@ func TestMD5Encrypt(t *testing.T) {
 }
 
 func TestHmacMD5Encrypt(t *testing.T) {
-	t.Log(HmacMD5("1234",[]byte("123456")))
+	t.Log(HmacMD5("test0",[]byte("zxcv1234")))
 }

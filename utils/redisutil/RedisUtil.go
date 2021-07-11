@@ -14,14 +14,20 @@ var redisClients map[string]*redis.Client = make(map[string]*redis.Client)
 func InitFromConfig(configs []interface{}, decryptKey string, decryptHandler func(content string, decryptKey string) string) bool {
 	for _, config := range configs {
 		configMap := config.(map[string]interface{})
-		if configMap["RedisName"] == nil || configMap["Addr"] == nil || configMap["Password"] == nil || configMap["DB"] == nil {
-			logutil.Error("RedisName、Addr、Password、DB为必填项", nil)
+		if configMap["RedisName"] == nil || configMap["Addr"] == nil {
+			logutil.Error("RedisName、Addr为必填项", nil)
 			return false
 		}
 		redisName := configMap["RedisName"].(string)
 		addr := configMap["Addr"].(string)
-		password := decryptHandler(configMap["Password"].(string), decryptKey)
-		db := int(configMap["DB"].(float64))
+		password := ""
+		if configMap["Password"] != nil {
+			password = decryptHandler(configMap["Password"].(string), decryptKey)
+		}
+		db := 0
+		if configMap["DB"] != nil {
+			db = int(configMap["DB"].(float64))
+		}
 		maxRetries := -1
 		poolSize := 200
 		minIdleConns := 100
