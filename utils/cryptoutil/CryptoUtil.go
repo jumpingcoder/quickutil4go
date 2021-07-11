@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"github.com/jumpingcoder/quickutil4go/utils/logutil"
 	"strings"
@@ -32,6 +34,18 @@ func MD5Encrypt(content []byte) string {
 func SHA1Encrypt(content []byte) string {
 	sum := sha1.Sum(content)
 	return fmt.Sprintf("%x", sum)
+}
+
+func HmacMD5(key string, data []byte) string {
+	hmac := hmac.New(md5.New, []byte(key))
+	hmac.Write(data)
+	return hex.EncodeToString(hmac.Sum([]byte("")))
+}
+
+func HmacSHA1(key string, data []byte) string {
+	hmac := hmac.New(sha1.New, []byte(key))
+	hmac.Write(data)
+	return hex.EncodeToString(hmac.Sum([]byte("")))
 }
 
 func AESCBCEncrypt(content []byte, key []byte, iv []byte) []byte {
