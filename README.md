@@ -1,8 +1,14 @@
-# quickutil4go
+## Introduction
 
-Utils for golang
+Utils for Golang, cover file, http, mysql, redis, crypto ...
 
-### Change Log
+## How To Use
+
+```
+go get github.com/jumpingcoder/quickutil4go
+```
+
+## Change Log
 
 #### v0.3.0
 
@@ -22,7 +28,3 @@ Utils for golang
 + dbutil
 + cryptoutil
 + environmentutil
-
-### How to begin
-
-+ go get github.com/jumpingcoder/quickutil4go
